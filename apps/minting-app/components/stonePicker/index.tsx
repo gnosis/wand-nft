@@ -1,5 +1,4 @@
-import { useState, useRef } from "react";
-import { useDrag } from "@use-gesture/react";
+import React from "react";
 import StoneViewer from "./StoneViewer";
 import {
   interpolateStone,
@@ -12,7 +11,6 @@ import UiCircle from "../uiCircle";
 import { useAppContext } from "../../state";
 import IconButton from "../IconButton";
 import StoneGlass from "./StoneGlass";
-import { clockwiseDelta, dimensions, toAngle } from "../trigonometry";
 import {
   describeFillers,
   describeSegments,
@@ -20,43 +18,22 @@ import {
 } from "../rhythm";
 import StoneFilter from "./StoneFilter";
 import assert from "assert";
+import useDragRotate from "../useDragRotate";
 
 const StonePicker: React.FC = () => {
-  const container = useRef<HTMLDivElement | null>(null);
   const { state, dispatch } = useAppContext();
-  const [rotation, setRotation] = useState<number>(0);
-  const [pin, setPin] = useState<number>(0);
 
-  const bind = useDrag(
-    ({ first, last, initial: [initialX, initialY], xy: [x, y] }) => {
-      const { center } = dimensions(
-        container.current?.getBoundingClientRect() as DOMRect
-      );
-
-      const delta = clockwiseDelta(
-        //drag start angle
-        toAngle(center, { x: initialX, y: initialY }),
-        //drag current angle
-        toAngle(center, { x, y })
-      );
-
-      if (first) {
-        setPin(rotation);
-      } else {
-        setRotation(pin + delta);
-      }
-
-      if (last) {
-        dispatch({
-          type: "changeStone",
-          value: toStoneId(withoutSkew(pin + delta)),
-        });
-      }
-    }
+  const { bind, rotation, hovering, dragging } = useDragRotate<HTMLDivElement>(
+    0,
+    (nextAngle: number) =>
+      dispatch({
+        type: "changeStone",
+        value: toStoneId(withoutSkew(nextAngle)),
+      })
   );
 
   return (
-    <div className={styles.container} ref={container}>
+    <div className={styles.container}>
       <div {...bind()} className={styles.drag}>
         <UiCircle rotation={rotation} showIndicator>
           <svg
@@ -117,10 +94,7 @@ const StonePicker: React.FC = () => {
         </UiCircle>
       </div>
       <div className={styles.stone}>
-        <StoneViewer
-          seed={state.tokenId}
-          stone={interpolateStone(toStoneId(withoutSkew(rotation)))}
-        />
+        <StoneViewer seed={state.tokenId} stone={interpolateStone(rotation)} />
         <StoneGlass />
       </div>
       <div className={styles.icon}>
